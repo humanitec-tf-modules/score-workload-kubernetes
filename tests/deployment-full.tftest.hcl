@@ -17,7 +17,7 @@ run "deployment_full" {
     metadata = {
       name = "deployment-full"
       annotations = {
-        "score.canyon.com/workload-type" = "Deployment"
+        "score.humanitec.dev/workload-type" = "Deployment"
       }
     }
 
