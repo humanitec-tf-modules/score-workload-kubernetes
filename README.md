@@ -18,7 +18,7 @@ Install this with the `hctl` CLI, you should replace the `CHANGEME` in the modul
 ```shell
 hctl create module \
     --set=resource_type=score-workload \
-    --set=module_source=git::https://github.com/humanitec-tf-mofules/score-workload-kubernetes?ref=CHANGEME \
+    --set=module_source=git::https://github.com/humanitec-tf-modules/score-workload-kubernetes?ref=CHANGEME \
     --set=provider_mapping='{"kubernetes": "CHANGEME"}' \
     --set=module_params='{"metadata":{"type":"map"},"containers":{"type":"map"},"service":{"type":"map","is_optional":true}}' \
     --set=module_inputs='{"namespace": "CHANGEME"}'
@@ -26,7 +26,7 @@ hctl create module \
 
 ## Parameters
 
-The module is designed to pass the `metadata`, `containers`, and `service` as parameters from the source score file, with any other module customization set by the platform engineer.
+The module is designed to pass the `metadata`, `containers`, and `service` as parameters from the source score file, with any other module [inputs](#inputs) set by the platform engineer.
 
 The only required input that must be set by the `module_inputs` is the `namespace` which provides the target Kubernetes namespace.
 
