@@ -1,6 +1,6 @@
 # score-workload-kubernetes
 
-This is a Terraform / OpenTofu compatible module to be used to provision `score-workload` resources ontop of Kubernetes for the Humanitec Orchestrator.
+This is a Terraform / OpenTofu compatible module to be used to provision `score-workload` resources on top of Kubernetes for the Humanitec Orchestrator.
 
 ## Requirements
 
