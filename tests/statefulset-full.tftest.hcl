@@ -63,8 +63,8 @@ run "deployment_full" {
     service = {
       ports = {
         "http" = {
-          port        = 80
-          target_port = 80
+          port       = 80
+          targetPort = 80
         }
       }
     }

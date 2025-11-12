@@ -49,13 +49,14 @@ locals {
   # assuming volume mount paths are unique across the pod.
   all_volumes = {
     for pair in flatten([
-      for cval in var.containers : [
+      for ckey, cval in var.containers : [
         for vkey, vval in coalesce(cval.volumes, {}) : {
-          key   = vkey
+          ckey  = ckey
+          vkey  = vkey
           value = vval
         }
       ] if cval != null
-    ]) : pair.key => pair.value
+    ]) : "${pair.ckey}-${pair.vkey}" => pair.value
   }
 }
 
