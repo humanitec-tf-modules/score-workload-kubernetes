@@ -7,7 +7,7 @@ This is a Terraform / OpenTofu compatible module to be used to provision `score-
 1. There must be a module provider setup for `kubernetes` (`hashicorp/kubernetes`).
 2. There must be a resource type setup for `score-workload`, for example:
 
-    ```
+    ```shell
     hctl create resource-type score-workload --set=description='Score Workload' --set=output_schema='{"type":"object","properties":{"endpoint":{"type":"string","description":"An optional endpoint uri that the workload's service ports will be exposed on if any are defined"}}}'
     ```
 
@@ -20,29 +20,17 @@ hctl create module \
     --set=resource_type=score-workload \
     --set=module_source=git::https://github.com/humanitec-tf-mofules/score-workload-kubernetes?ref=CHANGEME \
     --set=provider_mapping='{"kubernetes": "CHANGEME"}' \
+    --set=module_params='{"metadata":{"type":"map"},"containers":{"type":"map"},"service":{"type":"map","is_optional":true}}' \
     --set=module_inputs='{"namespace": "CHANGEME"}'
 ```
 
-## Resource Outputs
+## Parameters
 
-The following outputs are exposed
+The module is designed to pass the `metadata`, `containers`, and `service` as parameters from the source score file, with any other module customization set by the platform engineer.
 
-| Name            | Description                                             | Type     |
-| --------------- | ------------------------------------------------------- | -------- |
-| `endpoint`      | The dns name of the clusterip service for this workload | `string` |
+The only required input that must be set by the `module_inputs` is the `namespace` which provides the target Kubernetes namespace.
 
-## Module Inputs
-
-The following input variables can be set in the `module_inputs` of the `hctl create module` command.
-
-| Name                     | Description                                           | Type       | Default | Required |
-| ------------------------ | ----------------------------------------------------- | ---------- | ------- | -------- |
-| `namespace`              | The namespace to deploy to.                           | `string`   |         | yes      |
-| `service_account_name`   | The name of the service account to use for the pods.  | `string`   | `null`  | no       |
-| `additional_annotations` | Additional annotations to add to all resources.       | `map(string)` | `{}`    | no       |
-| `wait_for_rollout`       | Whether to wait for the workload to be rolled out.    | `bool`     | `true`  | no       |
-
-For example, to set the `service_account_name` and disable `wait_for_rollout`, you would use:
+For example, to set the `namespace`, `service_account_name` and disable `wait_for_rollout`, you would use:
 
 ```shell
 hctl create module \
