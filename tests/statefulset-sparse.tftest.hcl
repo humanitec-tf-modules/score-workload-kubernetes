@@ -27,4 +27,19 @@ run "deployment_full" {
       }
     }
   }
+
+  assert {
+    condition = length(kubernetes_deployment.default) == 0
+    error_message = "deployment name should not be set"
+  }
+
+  assert {
+    condition = length(kubernetes_service.default) == 0
+    error_message = "no service should be created"
+  }
+
+  assert {
+    condition = kubernetes_stateful_set.default[0].metadata[0].name == "statefulset-sparse"
+    error_message = "stateful set name should be set"
+  }
 }
