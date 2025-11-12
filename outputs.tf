@@ -12,5 +12,5 @@ output "humanitec_metadata" {
 
 output "endpoint" {
   description = "An optional endpoint uri that the workload's service ports will be exposed on if any are defined"
-  value = local.create_service ? "${var.metadata.name}.${var.namespace}.svc.cluster.local" : null
+  value       = local.create_service ? "${var.metadata.name}.${var.namespace}.svc.cluster.local" : null
 }
