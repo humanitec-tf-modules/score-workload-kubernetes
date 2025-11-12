@@ -66,3 +66,13 @@ Instead of a hardcoded destination namespace, you can use the resource graph to 
     ```
     --set=module_inputs='{"namespace": "${ resources.ns.outputs.name }"}'
     ```
+
+## Workload Type
+
+By default this module produces Kubernetes Deployments. To switch to a StatefulSet, the Score workload should set the following annotation:
+
+```yaml
+metadata:
+  annotations:
+    score.humanitec.dev/workload-type: StatefulSet
+```
