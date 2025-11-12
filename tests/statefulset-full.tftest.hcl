@@ -71,17 +71,17 @@ run "deployment_full" {
   }
 
   assert {
-    condition = length(kubernetes_deployment.default) == 0
+    condition     = length(kubernetes_deployment.default) == 0
     error_message = "deployment name should not be set"
   }
 
   assert {
-    condition = kubernetes_service.default[0].metadata[0].name == "statefulset-full"
+    condition     = kubernetes_service.default[0].metadata[0].name == "statefulset-full"
     error_message = "service name should be set"
   }
 
   assert {
-    condition = kubernetes_stateful_set.default[0].metadata[0].name == "statefulset-full"
+    condition     = kubernetes_stateful_set.default[0].metadata[0].name == "statefulset-full"
     error_message = "stateful set name should be set"
   }
 }
