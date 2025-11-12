@@ -25,7 +25,7 @@ locals {
   pod_annotations = merge(
     coalesce(try(var.metadata.annotations, null), {}),
     var.additional_annotations,
-    { "checksum/config" = sha256(local.stable_secret_json) }
+    { "checksum/config" = nonsensitive(sha256(local.stable_secret_json)) }
   )
 
   create_service = var.service != null && length(coalesce(var.service.ports, {})) > 0
