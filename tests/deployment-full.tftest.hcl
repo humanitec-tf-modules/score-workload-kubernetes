@@ -12,7 +12,8 @@ run "deployment_full" {
   command = plan
 
   variables {
-    namespace = "default"
+    namespace            = "default"
+    service_account_name = "something"
 
     metadata = {
       name = "deployment-full"
@@ -71,8 +72,111 @@ run "deployment_full" {
   }
 
   assert {
-    condition     = kubernetes_deployment.default[0].metadata[0].name == "deployment-full"
-    error_message = "deployment name should be set"
+    condition = kubernetes_manifest.deployment[0].manifest == {
+      apiVersion = "apps/v1"
+      kind       = "Deployment"
+      metadata = {
+        name      = "deployment-full"
+        namespace = "default"
+        annotations = {
+          "checksum/config" : "92d8a0e916e83115d1885573f716839ba439ecdcfe124f41887d132f32d9b8d4",
+          "score.humanitec.dev/workload-type" : "Deployment"
+        }
+        labels = {
+          app = "00000000"
+        }
+      }
+      spec = {
+        selector = {
+          matchLabels = {
+            app = "00000000"
+          }
+        }
+        template = {
+          metadata = {
+            annotations = {
+              "checksum/config" : "92d8a0e916e83115d1885573f716839ba439ecdcfe124f41887d132f32d9b8d4",
+              "score.humanitec.dev/workload-type" : "Deployment"
+            }
+            labels = {
+              app = "00000000"
+            }
+          }
+          spec = {
+            serviceAccountName = "something"
+            securityContext = {
+              runAsNonRoot = true
+              seccompProfile = {
+                type = "RuntimeDefault"
+              }
+            }
+            containers = [{
+              name  = "main"
+              image = "nginx:latest"
+              resources = {
+                limits = {
+                  cpu    = "200m"
+                  memory = "256Mi"
+                }
+                requests = {
+                  cpu    = "100m"
+                  memory = "128Mi"
+                }
+              }
+              securityContext = {
+                allowPrivilegeEscalation = false
+              }
+              envFrom = [{
+                secretRef = {
+                  name = "deployment-full-main-env"
+                }
+              }]
+              livenessProbe = {
+                httpGet = {
+                  path = "/"
+                  port = 80
+                }
+              }
+              readinessProbe = {
+                httpGet = {
+                  path = "/"
+                  port = 80
+                }
+              }
+              volumeMounts = [{
+                name      = "file-main-eca5007265"
+                mountPath = "/mnt"
+                readOnly  = true
+                }, {
+                name      = "file-main-f74e1bb35d"
+                mountPath = "/etc"
+                readOnly  = true
+              }]
+            }]
+            volumes = [{
+              name = "file-main-eca5007265"
+              secret = {
+                secretName = "deployment-full-main-eca5007265"
+                items = [{
+                  key  = "content"
+                  path = "test.txt"
+                }]
+              }
+              }, {
+              name = "file-main-f74e1bb35d"
+              secret = {
+                secretName = "deployment-full-main-f74e1bb35d"
+                items = [{
+                  key  = "content"
+                  path = "other.txt"
+                }]
+              }
+            }]
+          }
+        }
+      }
+    }
+    error_message = "manifest is not equal to ${yamlencode(kubernetes_manifest.deployment[0].manifest)}"
   }
 
   assert {
@@ -81,7 +185,7 @@ run "deployment_full" {
   }
 
   assert {
-    condition     = length(kubernetes_stateful_set.default) == 0
+    condition     = length(kubernetes_manifest.statefulset) == 0
     error_message = "stateful set should not be set"
   }
 }

@@ -91,174 +91,164 @@ resource "kubernetes_secret" "files" {
   }
 }
 
-resource "kubernetes_deployment" "default" {
-  count = local.workload_type == "Deployment" ? 1 : 0
-
-  metadata {
+locals {
+  manifest_metadata = {
     name        = var.metadata.name
     annotations = local.pod_annotations
     labels      = local.pod_labels
     namespace   = var.namespace
   }
 
-  wait_for_rollout = var.wait_for_rollout
+  pod_template = {
+    metadata = {
+      annotations = local.pod_annotations
+      labels      = local.pod_labels
+    }
+    spec = merge({
+      securityContext = {
+        runAsNonRoot = true
+        seccompProfile = {
+          type = "RuntimeDefault"
+        }
+      }
+      containers = [for cname, container in var.containers : merge({
+        name  = cname
+        image = container.image
+        securityContext = {
+          allowPrivilegeEscalation = false
+        }
+        }, container.command != null ? {
+        command = container.command
+        } : {}, container.args != null ? {
+        args = container.args
+        } : {}, container.variables != null ? {
+        envFrom = [{
+          secretRef = {
+            name = kubernetes_secret.env[cname].metadata[0].name
+          }
+        }]
+        } : {}, container.resources != null ? {
+        resources = container.resources
+        } : {}, container.livenessProbe != null ? { livenessProbe = merge(
+          {},
+          container.livenessProbe.httpGet != null ? {
+            httpGet = merge({
+              port = container.livenessProbe.httpGet.port
+              path = container.livenessProbe.httpGet.path
+              }, container.livenessProbe.httpGet.host != null ? {
+              host = container.livenessProbe.httpGet.host
+              } : {}, container.livenessProbe.httpGet.scheme != null ? {
+              scheme = container.livenessProbe.httpGet.scheme
+              } : {}, length(coalesce(container.livenessProbe.httpGet.httpHeaders, [])) > 0 ? {
+              httpHeaders = [for h in container.livenessProbe.httpGet.httpHeaders : {
+                name  = h.name
+                value = h.value
+              }]
+            } : {})
+          } : {},
+          container.livenessProbe.exec != null ? {
+            exec = {
+              command = container.livenessProbe.exec
+            }
+          } : {},
+          ) } : {}, container.readinessProbe != null ? { readinessProbe = merge(
+          {},
+          container.readinessProbe.httpGet != null ? {
+            httpGet = merge({
+              port = container.readinessProbe.httpGet.port
+              path = container.readinessProbe.httpGet.path
+              }, container.readinessProbe.httpGet.host != null ? {
+              host = container.readinessProbe.httpGet.host
+              } : {}, container.readinessProbe.httpGet.scheme != null ? {
+              scheme = container.readinessProbe.httpGet.scheme
+              } : {}, length(coalesce(container.readinessProbe.httpGet.httpHeaders, [])) > 0 ? {
+              httpHeaders = [for h in container.readinessProbe.httpGet.httpHeaders : {
+                name  = h.name
+                value = h.value
+              }]
+            } : {})
+            } : {}, container.readinessProbe.exec != null ? {
+            exec = {
+              command = container.readinessProbe.exec
+            }
+          } : {},
+        ) } : {}, try(length(container.volumes), 0) > 0 || length([for k, v in local.all_files_with_content : k if v.ckey == cname]) > 0 ? {
+        volumeMounts = flatten([[for k, v in coalesce(container.volumes, {}) : {
+          name      = "volume-${k}"
+          mountPath = k,
+          readOnly  = coalesce(v.readOnly, false)
+          }], [for k, v in local.all_files_with_content : {
+          name      = "file-${k}"
+          mountPath = dirname(v.fkey)
+          readOnly  = true
+        } if v.ckey == cname]])
+      } : {})]
+      }, length(local.all_volumes) > 0 || length(local.all_files_with_content) > 0 ? {
+      volumes = flatten([[for k, v in coalesce(local.all_volumes, {}) : {
+        name = "volume-${k}"
+        persistentVolumeClaim = {
+          claimName = v.source
+        }
+        }], [for k, v in local.all_files_with_content : {
+        name = "file-${k}"
+        secret = {
+          secretName = kubernetes_secret.files[k].metadata[0].name
+          items = [{
+            key  = "content"
+            path = basename(v.fkey)
+          }]
+        }
+      }]])
+      } : {}, var.service_account_name != null ? {
+      serviceAccountName = var.service_account_name
+    } : {})
+  }
+}
+
+resource "kubernetes_manifest" "deployment" {
+  count = local.workload_type == "Deployment" ? 1 : 0
+  manifest = {
+    apiVersion = "apps/v1"
+    kind       = "Deployment"
+    metadata   = local.manifest_metadata
+    spec = {
+      selector = { matchLabels = local.pod_labels }
+      template = local.pod_template
+    }
+  }
+
+  wait {
+    rollout = var.wait_for_rollout
+  }
+
   timeouts {
     create = "1m"
     update = "1m"
     delete = "1m"
   }
+}
 
-  spec {
-
-    selector {
-      match_labels = local.pod_labels
+resource "kubernetes_manifest" "statefulset" {
+  count = local.workload_type == "StatefulSet" ? 1 : 0
+  manifest = {
+    apiVersion = "apps/v1"
+    kind       = "StatefulSet"
+    metadata   = local.manifest_metadata
+    spec = {
+      selector    = { matchLabels = local.pod_labels }
+      serviceName = var.metadata.name
+      template    = local.pod_template
     }
+  }
 
-    template {
-      metadata {
-        annotations = local.pod_annotations
-        labels      = local.pod_labels
-      }
+  wait {
+    rollout = var.wait_for_rollout
+  }
 
-      spec {
-        service_account_name = var.service_account_name
-        security_context {
-          run_as_non_root = true
-          seccomp_profile {
-            type = "RuntimeDefault"
-          }
-        }
-        dynamic "container" {
-          for_each = var.containers
-          iterator = container
-          content {
-            name    = container.key
-            image   = container.value.image
-            command = container.value.command
-            args    = container.value.args
-            dynamic "env_from" {
-              for_each = container.value.variables != null ? [1] : []
-              content {
-                secret_ref {
-                  name = kubernetes_secret.env[container.key].metadata[0].name
-                }
-              }
-            }
-            security_context {
-              allow_privilege_escalation = false
-            }
-            resources {
-              limits = {
-                cpu    = try(container.value.resources.limits.cpu, null)
-                memory = try(container.value.resources.limits.memory, null)
-              }
-              requests = {
-                cpu    = try(container.value.resources.requests.cpu, null)
-                memory = try(container.value.resources.requests.memory, null)
-              }
-            }
-            dynamic "liveness_probe" {
-              for_each = container.value.livenessProbe != null ? [1] : []
-              content {
-                dynamic "http_get" {
-                  for_each = container.value.livenessProbe.httpGet != null ? [1] : []
-                  content {
-                    path   = container.value.livenessProbe.httpGet.path
-                    port   = container.value.livenessProbe.httpGet.port
-                    host   = lookup(container.value.livenessProbe.httpGet, "host", null)
-                    scheme = lookup(container.value.livenessProbe.httpGet, "scheme", null)
-                    dynamic "http_header" {
-                      for_each = coalesce(container.value.livenessProbe.httpGet.httpHeaders, [])
-                      iterator = header
-                      content {
-                        name  = header.value.name
-                        value = header.value.value
-                      }
-                    }
-                  }
-                }
-                dynamic "exec" {
-                  for_each = container.value.livenessProbe.exec != null ? [1] : []
-                  content {
-                    command = container.value.livenessProbe.exec.command
-                  }
-                }
-              }
-            }
-            dynamic "readiness_probe" {
-              for_each = container.value.readinessProbe != null ? [1] : []
-              content {
-                dynamic "http_get" {
-                  for_each = container.value.readinessProbe.httpGet != null ? [1] : []
-                  content {
-                    path   = container.value.readinessProbe.httpGet.path
-                    port   = container.value.readinessProbe.httpGet.port
-                    host   = lookup(container.value.readinessProbe.httpGet, "host", null)
-                    scheme = lookup(container.value.readinessProbe.httpGet, "scheme", null)
-                    dynamic "http_header" {
-                      for_each = coalesce(container.value.readinessProbe.httpGet.httpHeaders, [])
-                      iterator = header
-                      content {
-                        name  = header.value.name
-                        value = header.value.value
-                      }
-                    }
-                  }
-                }
-                dynamic "exec" {
-                  for_each = container.value.readinessProbe.exec != null ? [1] : []
-                  content {
-                    command = container.value.readinessProbe.exec.command
-                  }
-                }
-              }
-            }
-            dynamic "volume_mount" {
-              for_each = { for k, v in local.all_files_with_content : k => v if v.ckey == container.key }
-              iterator = file
-              content {
-                name       = "file-${file.key}"
-                mount_path = dirname(file.value.fkey)
-                read_only  = true
-              }
-            }
-            dynamic "volume_mount" {
-              for_each = coalesce(container.value.volumes, {})
-              iterator = volume
-              content {
-                name       = "volume-${volume.key}"
-                mount_path = volume.key
-                read_only  = coalesce(volume.value.readOnly, false)
-              }
-            }
-          }
-        }
-        dynamic "volume" {
-          for_each = local.all_files_with_content
-          iterator = file
-          content {
-            name = "file-${file.key}"
-            secret {
-              secret_name = kubernetes_secret.files[file.key].metadata[0].name
-              items {
-                key  = "content"
-                path = basename(file.value.fkey)
-              }
-            }
-          }
-        }
-        dynamic "volume" {
-          for_each = local.all_volumes
-          iterator = volume
-          content {
-            name = "volume-${volume.key}"
-            persistent_volume_claim {
-              claim_name = volume.value.source
-            }
-          }
-        }
-      }
-    }
+  timeouts {
+    create = "1m"
+    update = "1m"
+    delete = "1m"
   }
 }
 
@@ -283,178 +273,6 @@ resource "kubernetes_service" "default" {
         port        = service_port.value.port
         target_port = coalesce(service_port.value.targetPort, service_port.value.port)
         protocol    = coalesce(service_port.value.protocol, "TCP")
-      }
-    }
-  }
-}
-
-resource "kubernetes_stateful_set" "default" {
-  count = local.workload_type == "StatefulSet" ? 1 : 0
-
-  metadata {
-    name        = var.metadata.name
-    annotations = local.pod_annotations
-    labels      = local.pod_labels
-    namespace   = var.namespace
-  }
-
-  wait_for_rollout = var.wait_for_rollout
-  timeouts {
-    create = "1m"
-    update = "1m"
-    delete = "1m"
-  }
-
-  spec {
-    selector {
-      match_labels = local.pod_labels
-    }
-
-    service_name = var.metadata.name
-
-    template {
-      metadata {
-        annotations = local.pod_annotations
-        labels      = local.pod_labels
-      }
-
-      spec {
-        service_account_name = var.service_account_name
-        security_context {
-          run_as_non_root = true
-          seccomp_profile {
-            type = "RuntimeDefault"
-          }
-        }
-        dynamic "container" {
-          for_each = var.containers
-          iterator = container
-          content {
-            name    = container.key
-            image   = container.value.image
-            command = container.value.command
-            args    = container.value.args
-            dynamic "env_from" {
-              for_each = container.value.variables != null ? [1] : []
-              content {
-                secret_ref {
-                  name = kubernetes_secret.env[container.key].metadata[0].name
-                }
-              }
-            }
-            security_context {
-              allow_privilege_escalation = false
-            }
-            resources {
-              limits = {
-                cpu    = try(container.value.resources.limits.cpu, null)
-                memory = try(container.value.resources.limits.memory, null)
-              }
-              requests = {
-                cpu    = try(container.value.resources.requests.cpu, null)
-                memory = try(container.value.resources.requests.memory, null)
-              }
-            }
-            dynamic "liveness_probe" {
-              for_each = container.value.livenessProbe != null ? [1] : []
-              content {
-                dynamic "http_get" {
-                  for_each = container.value.livenessProbe.httpGet != null ? [1] : []
-                  content {
-                    path   = container.value.livenessProbe.httpGet.path
-                    port   = container.value.livenessProbe.httpGet.port
-                    host   = lookup(container.value.livenessProbe.httpGet, "host", null)
-                    scheme = lookup(container.value.livenessProbe.httpGet, "scheme", null)
-                    dynamic "http_header" {
-                      for_each = coalesce(container.value.livenessProbe.httpGet.httpHeaders, [])
-                      iterator = header
-                      content {
-                        name  = header.value.name
-                        value = header.value.value
-                      }
-                    }
-                  }
-                }
-                dynamic "exec" {
-                  for_each = container.value.livenessProbe.exec != null ? [1] : []
-                  content {
-                    command = container.value.livenessProbe.exec.command
-                  }
-                }
-              }
-            }
-            dynamic "readiness_probe" {
-              for_each = container.value.readinessProbe != null ? [1] : []
-              content {
-                dynamic "http_get" {
-                  for_each = container.value.readinessProbe.httpGet != null ? [1] : []
-                  content {
-                    path   = container.value.readinessProbe.httpGet.path
-                    port   = container.value.readinessProbe.httpGet.port
-                    host   = lookup(container.value.readinessProbe.httpGet, "host", null)
-                    scheme = lookup(container.value.readinessProbe.httpGet, "scheme", null)
-                    dynamic "http_header" {
-                      for_each = coalesce(container.value.readinessProbe.httpGet.httpHeaders, [])
-                      iterator = header
-                      content {
-                        name  = header.value.name
-                        value = header.value.value
-                      }
-                    }
-                  }
-                }
-                dynamic "exec" {
-                  for_each = container.value.readinessProbe.exec != null ? [1] : []
-                  content {
-                    command = container.value.readinessProbe.exec.command
-                  }
-                }
-              }
-            }
-            dynamic "volume_mount" {
-              for_each = { for k, v in local.all_files_with_content : k => v if v.ckey == container.key }
-              iterator = file
-              content {
-                name       = "file-${file.key}"
-                mount_path = dirname(file.value.fkey)
-                read_only  = true
-              }
-            }
-            dynamic "volume_mount" {
-              for_each = coalesce(container.value.volumes, {})
-              iterator = volume
-              content {
-                name       = "volume-${volume.key}"
-                mount_path = volume.key
-                read_only  = coalesce(volume.value.readOnly, false)
-              }
-            }
-          }
-        }
-        dynamic "volume" {
-          for_each = local.all_files_with_content
-          iterator = file
-          content {
-            name = "file-${file.key}"
-            secret {
-              secret_name = kubernetes_secret.files[file.key].metadata[0].name
-              items {
-                key  = "content"
-                path = basename(file.value.fkey)
-              }
-            }
-          }
-        }
-        dynamic "volume" {
-          for_each = local.all_volumes
-          iterator = volume
-          content {
-            name = "volume-${volume.key}"
-            persistent_volume_claim {
-              claim_name = volume.value.source
-            }
-          }
-        }
       }
     }
   }

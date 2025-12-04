@@ -29,8 +29,55 @@ run "deployment_full" {
   }
 
   assert {
-    condition     = kubernetes_deployment.default[0].metadata[0].name == "deployment-sparse"
-    error_message = "deployment name should be set"
+    condition = kubernetes_manifest.deployment[0].manifest == {
+      apiVersion = "apps/v1"
+      kind       = "Deployment"
+      metadata = {
+        name      = "deployment-sparse"
+        namespace = "default"
+        annotations = {
+          "checksum/config" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "score.humanitec.dev/workload-type" : "Deployment"
+        }
+        labels = {
+          app = "00000000"
+        }
+      }
+      spec = {
+        selector = {
+          matchLabels = {
+            app = "00000000"
+          }
+        }
+        template = {
+          metadata = {
+            annotations = {
+              "checksum/config" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "score.humanitec.dev/workload-type" : "Deployment"
+            }
+            labels = {
+              app = "00000000"
+            }
+          }
+          spec = {
+            securityContext = {
+              runAsNonRoot = true
+              seccompProfile = {
+                type = "RuntimeDefault"
+              }
+            }
+            containers = [{
+              name  = "main"
+              image = "nginx:latest"
+              securityContext = {
+                allowPrivilegeEscalation = false
+              }
+            }]
+          }
+        }
+      }
+    }
+    error_message = "manifest is not equal to ${yamlencode(kubernetes_manifest.deployment[0].manifest)}"
   }
 
   assert {
@@ -39,7 +86,7 @@ run "deployment_full" {
   }
 
   assert {
-    condition     = length(kubernetes_stateful_set.default) == 0
+    condition     = length(kubernetes_manifest.statefulset) == 0
     error_message = "stateful set should not be set"
   }
 }
