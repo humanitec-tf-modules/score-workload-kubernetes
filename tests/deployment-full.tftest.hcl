@@ -9,7 +9,7 @@ mock_provider "random" {
 }
 
 run "deployment_full" {
-  command = plan
+  command = apply
 
   variables {
     namespace            = "default"
