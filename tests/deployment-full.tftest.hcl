@@ -38,6 +38,11 @@ run "deployment_full" {
             memory = "256Mi"
           }
         }
+        volumes = {
+          "/special/mount" = {
+            source = "some-claim"
+          }
+        }
         files = {
           "/mnt/test.txt" = {
             content = "hello world"
@@ -144,6 +149,10 @@ run "deployment_full" {
                 }
               }
               volumeMounts = [{
+                name      = "volume-7f19ffb0"
+                mountPath = "/special/mount"
+                readOnly  = false
+                }, {
                 name      = "file-main-eca5007265"
                 mountPath = "/mnt"
                 readOnly  = true
@@ -154,6 +163,11 @@ run "deployment_full" {
               }]
             }]
             volumes = [{
+              name = "volume-7f19ffb0"
+              persistentVolumeClaim = {
+                claimName = "some-claim"
+              }
+              }, {
               name = "file-main-eca5007265"
               secret = {
                 secretName = "deployment-full-main-eca5007265"
@@ -188,4 +202,39 @@ run "deployment_full" {
     condition     = length(kubernetes_manifest.statefulset) == 0
     error_message = "stateful set should not be set"
   }
+
+  assert {
+    condition     = length(kubernetes_secret.env) == 1
+    error_message = "expected N env secrets got ${length(kubernetes_secret.env)}"
+  }
+
+  assert {
+    condition     = kubernetes_secret.env["main"].metadata[0].name == "deployment-full-main-env"
+    error_message = "secret env name was wrong, got ${kubernetes_secret.env["main"].metadata[0].name}"
+  }
+
+  assert {
+    condition = jsonencode(kubernetes_secret.env["main"].data) == jsonencode({
+      MY_ENV_VAR = "my-value"
+    })
+    error_message = "expected different data got ${jsonencode(nonsensitive(kubernetes_secret.env["main"].data))}"
+  }
+
+  assert {
+    condition     = jsonencode(sort(keys(kubernetes_secret.files))) == jsonencode(["main-eca5007265", "main-f74e1bb35d"])
+    error_message = "expected N env secrets got ${jsonencode(keys(kubernetes_secret.files))}"
+  }
+
+  assert {
+    condition     = kubernetes_secret.files["main-eca5007265"].metadata[0].name == "deployment-full-main-eca5007265"
+    error_message = "secret files name was wrong, got ${kubernetes_secret.files["main-eca5007265"].metadata[0].name}"
+  }
+
+  assert {
+    condition = jsonencode(kubernetes_secret.files["main-eca5007265"].data) == jsonencode({
+      content = "hello world"
+    })
+    error_message = "expected different data got ${jsonencode(nonsensitive(kubernetes_secret.files["main-eca5007265"].data))}"
+  }
+
 }

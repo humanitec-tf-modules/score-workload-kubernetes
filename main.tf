@@ -148,7 +148,7 @@ locals {
           } : {},
           container.livenessProbe.exec != null ? {
             exec = {
-              command = container.livenessProbe.exec
+              command = container.livenessProbe.exec.command
             }
           } : {},
           ) } : {}, container.readinessProbe != null ? { readinessProbe = merge(
@@ -169,13 +169,13 @@ locals {
             } : {})
             } : {}, container.readinessProbe.exec != null ? {
             exec = {
-              command = container.readinessProbe.exec
+              command = container.readinessProbe.exec.command
             }
           } : {},
         ) } : {}, try(length(container.volumes), 0) > 0 || length([for k, v in local.all_files_with_content : k if v.ckey == cname]) > 0 ? {
         volumeMounts = flatten([[for k, v in coalesce(container.volumes, {}) : {
-          name      = "volume-${k}"
-          mountPath = k,
+          name      = "volume-${substr(sha256(join("-", [cname, k])), 0, 8)}"
+          mountPath = k
           readOnly  = coalesce(v.readOnly, false)
           }], [for k, v in local.all_files_with_content : {
           name      = "file-${k}"
@@ -184,21 +184,23 @@ locals {
         } if v.ckey == cname]])
       } : {})]
       }, length(local.all_volumes) > 0 || length(local.all_files_with_content) > 0 ? {
-      volumes = flatten([[for k, v in coalesce(local.all_volumes, {}) : {
-        name = "volume-${k}"
-        persistentVolumeClaim = {
-          claimName = v.source
-        }
-        }], [for k, v in local.all_files_with_content : {
-        name = "file-${k}"
-        secret = {
-          secretName = kubernetes_secret.files[k].metadata[0].name
-          items = [{
-            key  = "content"
-            path = basename(v.fkey)
-          }]
-        }
-      }]])
+      volumes = flatten([
+        [for k, v in coalesce(local.all_volumes, {}) : {
+          name = "volume-${substr(sha256(k), 0, 8)}"
+          persistentVolumeClaim = {
+            claimName = v.source
+          }
+          }], [for k, v in local.all_files_with_content : {
+          name = "file-${k}"
+          secret = {
+            secretName = kubernetes_secret.files[k].metadata[0].name
+            items = [{
+              key  = "content"
+              path = basename(v.fkey)
+            }]
+          }
+        }]
+      ])
       } : {}, var.service_account_name != null ? {
       serviceAccountName = var.service_account_name
     } : {})
