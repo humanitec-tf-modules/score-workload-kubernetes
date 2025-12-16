@@ -13,7 +13,7 @@ This is a Terraform / OpenTofu compatible module to be used to provision `score-
 
 ## Installation
 
-Install this with the `hctl` CLI, you should replace the `CHANGEME` in the module source with the latest release tag, replace the `CHANGEME` in the provider mapping with your real provider type and alias for Kubernetes; and replace the `CHANGEME` in module inputs with the real target namespace.
+Install this with the `hctl` CLI, you should replace the `CHANGEME` in the module source with the latest release tag, replace the `CHANGEME` in the [provider mapping](https://developer.humanitec.com/platform-orchestrator/docs/configure/modules/overview/#provider-mapping) with your real provider type and alias for Kubernetes; and replace the `CHANGEME` in module inputs with the real target namespace.
 
 ```shell
 hctl create module \
