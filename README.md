@@ -10,7 +10,7 @@ This is a Terraform / OpenTofu compatible module to be used to provision `score-
     For Terraform/OpenTofu use:
 
     ```hcl
-    resource "platform-orchestrator_resource_type" "score-workload" {
+    resource "platform-orchestrator_resource_type" "score_workload" {
       id                      = "score-workload"
       description             = "Score Workload"
       is_developer_accessible = true
@@ -42,7 +42,7 @@ For Terraform/OpenTofu use:
 resource "platform-orchestrator_module" "score-workload" {
   id            = "score-workload"
   description   = "Score workload"
-  resource_type = platform-orchestrator_resource_type.score-workload.id
+  resource_type = platform-orchestrator_resource_type.score_workload.id
   module_source = "git::https://github.com/humanitec-tf-modules/score-workload-kubernetes?ref=CHANGEME"
   provider_mapping = {
     kubernetes = "CHANGEME"
