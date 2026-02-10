@@ -39,7 +39,7 @@ Install this module. You should replace the `CHANGEME` in the module source with
 For Terraform/OpenTofu use:
 
 ```hcl
-resource "platform-orchestrator_module" "score-workload" {
+resource "platform-orchestrator_module" "score_workload" {
   id            = "score-workload"
   description   = "Score workload"
   resource_type = platform-orchestrator_resource_type.score_workload.id
@@ -88,7 +88,7 @@ For example, to set the `namespace`, `service_account_name` and disable `wait_fo
 Terraform/OpenTofu:
 
 ```hcl
-resource "platform-orchestrator_module" "score-workload" {
+resource "platform-orchestrator_module" "score_workload" {
   # ...
   module_inputs = jsonencode({
     namespace            = "CHANGEME"
@@ -116,7 +116,7 @@ Instead of a hardcoded destination namespace, you can use the resource graph to 
     Terraform/OpenTofu:
 
     ```hcl
-    resource "platform-orchestrator_module" "score-workload" {
+    resource "platform-orchestrator_module" "score_workload" {
       # ...
       dependencies = {
         ns = {
