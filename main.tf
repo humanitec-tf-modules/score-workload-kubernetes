@@ -4,7 +4,7 @@ resource "random_id" "id" {
 
 locals {
   workload_type = lookup(coalesce(try(var.metadata.annotations, null), {}), "score.humanitec.dev/workload-type", "Deployment")
-  pod_labels    = { app = random_id.id.hex }
+  pod_labels    = merge({ app = random_id.id.hex }, var.additional_labels)
   # Create a map of all secret data, keyed by a stable identifier
   all_secret_data = merge(
     { for k, v in kubernetes_secret.env : "env-${k}" => v.data },
