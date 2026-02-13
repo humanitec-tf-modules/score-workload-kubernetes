@@ -7,16 +7,69 @@ This is a Terraform / OpenTofu compatible module to be used to provision `score-
 1. There must be a module provider setup for `kubernetes` (`hashicorp/kubernetes`).
 2. There must be a resource type setup for `score-workload`, for example:
 
+    For Terraform/OpenTofu use:
+
+    ```hcl
+    resource "platform-orchestrator_resource_type" "score_workload" {
+      id                      = "score-workload"
+      description             = "Score Workload"
+      is_developer_accessible = true
+      output_schema = jsonencode({
+        type = "object"
+        properties = {
+          endpoint = {
+            description = "An optional endpoint hostname that the service ports of the workload will be exposed on if any are defined"
+            type        = "string"
+          }
+        }
+      })
+    }
+    ```
+
+    For CLI use:
+
     ```shell
-    hctl create resource-type score-workload --set=description='Score Workload' --set=output_schema='{"type":"object","properties":{"endpoint":{"type":"string","description":"An optional endpoint uri that the workload's service ports will be exposed on if any are defined"}}}'
+    hctl create resource-type score-workload --set=description='Score Workload' --set=output_schema='{"type":"object","properties":{"endpoint":{"type":"string","description":"An optional endpoint hostname that the service ports of the workload will be exposed on if any are defined"}}}'
     ```
 
 ## Installation
 
-Install this with the `hctl` CLI, you should replace the `CHANGEME` in the module source with the latest release tag, replace the `CHANGEME` in the [provider mapping](https://developer.humanitec.com/platform-orchestrator/docs/configure/modules/overview/#provider-mapping) with your real provider type and alias for Kubernetes; and replace the `CHANGEME` in module inputs with the real target namespace.
+Install this module. You should replace the `CHANGEME` in the module source with the latest release tag, replace the `CHANGEME` in the [provider mapping](https://developer.humanitec.com/platform-orchestrator/docs/configure/modules/overview/#provider-mapping) with your real provider type and alias for Kubernetes; and replace the `CHANGEME` in module inputs with the real target namespace.
+
+For Terraform/OpenTofu use:
+
+```hcl
+resource "platform-orchestrator_module" "score_workload" {
+  id            = "score-workload"
+  description   = "Score workload"
+  resource_type = platform-orchestrator_resource_type.score_workload.id
+  module_source = "git::https://github.com/humanitec-tf-modules/score-workload-kubernetes?ref=CHANGEME"
+  provider_mapping = {
+    kubernetes = "CHANGEME"
+  }
+  module_params = {
+    containers = {
+      type = "map"
+    }
+    metadata = {
+      type = "map"
+    }
+    service = {
+      type        = "map"
+      is_optional = true
+    }
+  }
+  module_inputs = jsonencode({
+    namespace = "CHANGEME"
+  })
+}
+
+```
+
+For CLI use:
 
 ```shell
-hctl create module \
+hctl create module score-workload \
     --set=resource_type=score-workload \
     --set=module_source=git::https://github.com/humanitec-tf-modules/score-workload-kubernetes?ref=CHANGEME \
     --set=provider_mapping='{"kubernetes": "CHANGEME"}' \
@@ -30,7 +83,22 @@ The module is designed to pass the `metadata`, `containers`, and `service` as pa
 
 The only required input that must be set by the `module_inputs` is the `namespace` which provides the target Kubernetes namespace.
 
-For example, to set the `namespace`, `service_account_name` and disable `wait_for_rollout`, you would use:
+For example, to set the `namespace`, `service_account_name` and disable `wait_for_rollout`, you would use these inputs:
+
+Terraform/OpenTofu:
+
+```hcl
+resource "platform-orchestrator_module" "score_workload" {
+  # ...
+  module_inputs = jsonencode({
+    namespace            = "CHANGEME"
+    service_account_name = "my-sa"
+    wait_for_rollout     = false
+  })
+}
+```
+
+CLI:
 
 ```shell
 hctl create module \
@@ -43,16 +111,41 @@ hctl create module \
 Instead of a hardcoded destination namespace, you can use the resource graph to provision a namespace.
 
 1. Ensure there is a resource type for the namespace (eg: `k8s-namespace`) and that there is a module and rule set up for it in the target environments.
-2. Add a dependency to the create module request:
+2. Add a dependency to the module:
 
-    ```
-    --set=dependencies='{"ns": {"type": "k8s-namespace"}}'
+    Terraform/OpenTofu:
+
+    ```hcl
+    resource "platform-orchestrator_module" "score_workload" {
+      # ...
+      dependencies = {
+        ns = {
+          type = "k8s-namespace"
+        }
+      }
+    }
     ```
 
-3. In the module inputs replace this with the placeholder:
+    CLI:
 
+    ```shell
+    hctl create module ... --set=dependencies='{"ns": {"type": "k8s-namespace"}}'
     ```
-    --set=module_inputs='{"namespace": "${ resources.ns.outputs.name }"}'
+
+3. In the module inputs replace this with the [placeholder](https://developer.humanitec.com/platform-orchestrator/docs/reference/placeholder-expressions/#resource-placeholders):
+
+    Terraform/OpenTofu:
+
+    ```hcl
+    module_inputs = jsonencode({
+      namespace = "$${resources.ns.outputs.name}"
+    })
+    ```
+
+    CLI:
+
+    ```shell
+    hctl create module ... --set=module_inputs='{"namespace": "${resources.ns.outputs.name}"}'
     ```
 
 ## Workload Type
@@ -78,7 +171,7 @@ metadata:
 | Name | Version |
 |------|---------|
 | <a name="provider_kubernetes"></a> [kubernetes](#provider\_kubernetes) | 3.0.1 |
-| <a name="provider_random"></a> [random](#provider\_random) | 3.7.2 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.8.1 |
 
 ## Modules
 
@@ -100,6 +193,7 @@ No modules.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_additional_annotations"></a> [additional\_annotations](#input\_additional\_annotations) | Additional annotations to add to all resources. | `map(string)` | `{}` | no |
+| <a name="input_additional_labels"></a> [additional\_labels](#input\_additional\_labels) | Additional labels to add to all resources. | `map(string)` | `{}` | no |
 | <a name="input_containers"></a> [containers](#input\_containers) | The containers section of the Score file. | <pre>map(object({<br/>    image     = string<br/>    command   = optional(list(string))<br/>    args      = optional(list(string))<br/>    variables = optional(map(string))<br/>    files = optional(map(object({<br/>      source        = optional(string)<br/>      content       = optional(string)<br/>      binaryContent = optional(string)<br/>      mode          = optional(string)<br/>      noExpand      = optional(bool)<br/>    })))<br/>    volumes = optional(map(object({<br/>      source   = string<br/>      path     = optional(string)<br/>      readOnly = optional(bool)<br/>    })))<br/>    resources = optional(object({<br/>      limits = optional(object({<br/>        memory = optional(string)<br/>        cpu    = optional(string)<br/>      }))<br/>      requests = optional(object({<br/>        memory = optional(string)<br/>        cpu    = optional(string)<br/>      }))<br/>    }))<br/>    livenessProbe = optional(object({<br/>      httpGet = optional(object({<br/>        host   = optional(string)<br/>        scheme = optional(string)<br/>        path   = string<br/>        port   = number<br/>        httpHeaders = optional(list(object({<br/>          name  = string<br/>          value = string<br/>        })))<br/>      }))<br/>      exec = optional(object({<br/>        command = list(string)<br/>      }))<br/>    }))<br/>    readinessProbe = optional(object({<br/>      httpGet = optional(object({<br/>        host   = optional(string)<br/>        scheme = optional(string)<br/>        path   = string<br/>        port   = number<br/>        httpHeaders = optional(list(object({<br/>          name  = string<br/>          value = string<br/>        })))<br/>      }))<br/>      exec = optional(object({<br/>        command = list(string)<br/>      }))<br/>    }))<br/>  }))</pre> | n/a | yes |
 | <a name="input_metadata"></a> [metadata](#input\_metadata) | The metadata section of the Score file. | `any` | n/a | yes |
 | <a name="input_namespace"></a> [namespace](#input\_namespace) | The Kubernetes namespace to deploy the resources into. | `string` | n/a | yes |
@@ -111,6 +205,6 @@ No modules.
 
 | Name | Description |
 |------|-------------|
-| <a name="output_endpoint"></a> [endpoint](#output\_endpoint) | An optional endpoint uri that the workload's service ports will be exposed on if any are defined |
+| <a name="output_endpoint"></a> [endpoint](#output\_endpoint) | An optional endpoint hostname that the service ports of the workload will be exposed on if any are defined |
 | <a name="output_humanitec_metadata"></a> [humanitec\_metadata](#output\_humanitec\_metadata) | Metadata for Humanitec. |
 <!-- END_TF_DOCS -->
