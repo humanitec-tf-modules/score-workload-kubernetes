@@ -18,7 +18,7 @@ This is a Terraform / OpenTofu compatible module to be used to provision `score-
         type = "object"
         properties = {
           endpoint = {
-            description = "An optional endpoint uri that the service ports of the workload will be exposed on if any are defined"
+            description = "An optional endpoint hostname that the service ports of the workload will be exposed on if any are defined"
             type        = "string"
           }
         }
@@ -29,7 +29,7 @@ This is a Terraform / OpenTofu compatible module to be used to provision `score-
     For CLI use:
 
     ```shell
-    hctl create resource-type score-workload --set=description='Score Workload' --set=output_schema='{"type":"object","properties":{"endpoint":{"type":"string","description":"An optional endpoint uri that the service ports of the workload will be exposed on if any are defined"}}}'
+    hctl create resource-type score-workload --set=description='Score Workload' --set=output_schema='{"type":"object","properties":{"endpoint":{"type":"string","description":"An optional endpoint hostname that the service ports of the workload will be exposed on if any are defined"}}}'
     ```
 
 ## Installation
@@ -204,6 +204,6 @@ No modules.
 
 | Name | Description |
 |------|-------------|
-| <a name="output_endpoint"></a> [endpoint](#output\_endpoint) | An optional endpoint uri that the service ports of the workload will be exposed on if any are defined |
+| <a name="output_endpoint"></a> [endpoint](#output\_endpoint) | An optional endpoint hostname that the service ports of the workload will be exposed on if any are defined |
 | <a name="output_humanitec_metadata"></a> [humanitec\_metadata](#output\_humanitec\_metadata) | Metadata for Humanitec. |
 <!-- END_TF_DOCS -->
