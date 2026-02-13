@@ -94,6 +94,12 @@ variable "additional_annotations" {
   default     = {}
 }
 
+variable "additional_labels" {
+  type        = map(string)
+  description = "Additional labels to add to all resources."
+  default     = {}
+}
+
 variable "wait_for_rollout" {
   type        = bool
   description = "Whether to wait for the workload to be rolled out."
