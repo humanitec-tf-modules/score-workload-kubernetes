@@ -71,8 +71,8 @@ run "deployment_full" {
   }
 
   assert {
-    condition     = length(kubernetes_deployment.default) == 0
-    error_message = "deployment name should not be set"
+    condition     = kubernetes_manifest.workload.manifest.kind == "StatefulSet"
+    error_message = "manifest kind should be StatefulSet"
   }
 
   assert {
@@ -81,7 +81,7 @@ run "deployment_full" {
   }
 
   assert {
-    condition     = kubernetes_stateful_set.default[0].metadata[0].name == "statefulset-full"
+    condition     = kubernetes_manifest.workload.manifest.metadata.name == "statefulset-full"
     error_message = "stateful set name should be set"
   }
 }
