@@ -68,7 +68,7 @@ locals {
     for k, v in {
       metadata = try(local.ext_deployment.metadata, {})
       spec     = { for x, y in local.ext_deployment : x => y if x != "metadata" }
-    } : k => v if length(local.ext_deployment) > 0
+    } : k => v if length(keys(local.ext_deployment)) > 0
   }
 
   ext_pod_patch = {
@@ -78,10 +78,10 @@ locals {
           for x, y in {
             metadata = try(local.ext_pod.metadata, {})
             spec     = { for z, w in local.ext_pod : z => w if z != "metadata" }
-          } : x => y if length(local.ext_pod) > 0
+          } : x => y if length(keys(local.ext_pod)) > 0
         }
       }
-    } : k => v if length(local.ext_pod) > 0
+    } : k => v if length(keys(local.ext_pod)) > 0
   }
 
   # --- Build containers as K8s API JSON ---
