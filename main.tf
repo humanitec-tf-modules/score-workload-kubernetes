@@ -68,7 +68,7 @@ locals {
     for k, v in {
       metadata = try(local.ext_deployment.metadata, {})
       spec     = { for x, y in local.ext_deployment : x => y if x != "metadata" }
-    } : k => v if length(keys(local.ext_deployment)) > 0
+    } : k => v if length(keys(local.ext_deployment)) > 0 && length(keys(v)) > 0
   }
 
   ext_pod_patch = {
@@ -219,13 +219,25 @@ resource "kubernetes_manifest" "workload" {
   manifest = provider::deepmerge::mergo(
     local.base_manifest,
     local.ext_deployment_patch,
-    local.ext_pod_patch
+    local.ext_pod_patch,
+    "append"
   )
 
-  computed_fields = ["metadata.annotations", "metadata.labels"]
+  computed_fields = [
+    "metadata.annotations",
+    "metadata.labels",
+    "spec.template.metadata.annotations",
+    "spec.template.metadata.labels"
+  ]
 
   wait {
     rollout = var.wait_for_rollout
+  }
+
+  timeouts {
+    create = "1m"
+    update = "1m"
+    delete = "1m"
   }
 }
 

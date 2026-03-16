@@ -23,7 +23,7 @@ run "deployment_with_extensions" {
         deployment = {
           metadata = {
             annotations = {
-              "my-custom-annotation" = "custom-value"
+              "my-custom-annotation" = "$${resources.db.host}"
             }
           }
           replicas = 3
@@ -71,12 +71,58 @@ run "deployment_with_extensions" {
   }
 
   assert {
-    condition     = try(kubernetes_manifest.workload.manifest.metadata.annotations["my-custom-annotation"], "") == "custom-value"
+    condition     = try(kubernetes_manifest.workload.manifest.metadata.annotations["my-custom-annotation"], "") == "$${resources.db.host}"
     error_message = "metadata.annotations should be patched from extension"
   }
 
   assert {
     condition     = try(kubernetes_manifest.workload.manifest.spec.template.metadata.labels["my-custom-label"], "") == "pod-label-value"
     error_message = "spec.template.metadata.labels should be patched from extension"
+  }
+}
+
+run "statefulset_with_extensions" {
+  command = plan
+
+  variables {
+    namespace = "default"
+
+    metadata = {
+      name = "statefulset-ext"
+      annotations = {
+        "score.humanitec.dev/workload-type" = "StatefulSet"
+      }
+      "score.humanitec.dev/extension" = {
+        deployment = {
+          metadata = {
+            annotations = {
+              "my-custom-annotation" = "$${resources.db.host}"
+            }
+          }
+          replicas = 3
+        }
+      }
+    }
+
+    containers = {
+      "main" = {
+        image = "nginx:latest"
+      }
+    }
+  }
+
+  assert {
+    condition     = try(kubernetes_manifest.workload.manifest.spec.serviceName, "") == "statefulset-ext"
+    error_message = "spec.serviceName should not be clobbered by extension for StatefulSet"
+  }
+
+  assert {
+    condition     = try(kubernetes_manifest.workload.manifest.metadata.annotations["my-custom-annotation"], "") == "$${resources.db.host}"
+    error_message = "metadata.annotations should be patched from extension"
+  }
+
+  assert {
+    condition     = try(kubernetes_manifest.workload.manifest.spec.replicas, 0) == 3
+    error_message = "spec.replicas should be patched from extension"
   }
 }

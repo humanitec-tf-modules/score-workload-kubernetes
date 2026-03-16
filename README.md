@@ -2,10 +2,15 @@
 
 This is a Terraform / OpenTofu compatible module to be used to provision `score-workload` resources on top of Kubernetes for the Humanitec Orchestrator.
 
+## 🔴 Breaking Changes
+> [!WARNING]
+> Switching from `kubernetes_deployment` / `kubernetes_stateful_set` to `kubernetes_manifest` means any existing user who upgrades this module will see Terraform plan a destroy + recreate of their running workload. That's potential production downtime. Please plan your upgrades accordingly.
+
 ## Requirements
 
 1. There must be a module provider setup for `kubernetes` (`hashicorp/kubernetes`).
-2. There must be a resource type setup for `score-workload`, for example:
+2. There must be a module provider setup for `deepmerge` (`isometry/deepmerge`).
+3. There must be a resource type setup for `score-workload`, for example:
 
     ```shell
     hctl create resource-type score-workload --set=description='Score Workload' --set=output_schema='{"type":"object","properties":{"endpoint":{"type":"string","description":"An optional endpoint uri that the workload's service ports will be exposed on if any are defined"}}}'
@@ -64,6 +69,15 @@ metadata:
   annotations:
     score.humanitec.dev/workload-type: StatefulSet
 ```
+
+## Security Context
+
+This module applies a secure default `securityContext` to the workload:
+- `runAsNonRoot: true`
+- `seccompProfile.type: RuntimeDefault`
+- `allowPrivilegeEscalation: false` (on containers)
+
+If Platform Engineers need a different security context for their workloads, they will need to fork this module and customize the configuration.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
