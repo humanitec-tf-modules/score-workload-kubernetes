@@ -84,7 +84,7 @@ If Platform Engineers need a different default security context for their worklo
 
 ## Kubernetes workload spec support
 
-Starting with release `v2.0.0`, you may specify any details of Kubernetes workload resources ([Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) and [Pod](https://kubernetes.io/docs/concepts/workloads/pods/)) via Score under the reserved metadata property `"score.humanitec.dev/extension"`.
+Starting with release `v2.0.0`, you may specify any details of Kubernetes workload resources ([Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) or [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)) as well as the [Pod template](https://kubernetes.io/docs/concepts/workloads/pods/) via Score under the reserved metadata property `"score.humanitec.dev/extension"`.
 
 ```yaml
 apiVersion: score.dev/v1b1
@@ -94,7 +94,7 @@ metadata:
     deployment:
       # ... Content will be merged into the DeploymentSpec or StatefulSetSpec of your workload
     pod:
-      # ... Content will be merged into the PodSpec of your workload
+      # ... Content will be merged into the PodTemplateSpec of your workload
 ```
 
 ### Example
