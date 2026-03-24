@@ -99,7 +99,7 @@ resource "platform-orchestrator_module" "score_workload" {
   # ...
   module_inputs = jsonencode({
     namespace            = "CHANGEME"
-    service_account_name = "my-sa"
+    service_account_name = "CHANGEME"
     wait_for_rollout     = false
   })
 }
@@ -110,7 +110,7 @@ CLI:
 ```shell
 hctl create module \
     ...
-    --set=module_inputs='{"namespace": "my-namespace", "service_account_name": "my-sa", "wait_for_rollout": false}'
+    --set=module_inputs='{"namespace": "CHANGEME", "service_account_name": "CHANGEME", "wait_for_rollout": false}'
 ```
 
 ### Dynamic namespaces
