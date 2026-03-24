@@ -2,9 +2,12 @@
 
 This is a Terraform / OpenTofu compatible module to be used to provision `score-workload` resources on top of Kubernetes for the Humanitec Orchestrator.
 
-## 🔴 Breaking Changes
+## 🔴 Breaking Changes with v2.0.0
 > [!WARNING]
-> Switching from `kubernetes_deployment` / `kubernetes_stateful_set` to `kubernetes_manifest` means any existing user who upgrades this module will see Terraform plan a destroy + recreate of their running workload. That's potential production downtime. Please plan your upgrades accordingly.
+> 
+> The implementation is switching from using `kubernetes_deployment` / `kubernetes_stateful_set` to `kubernetes_manifest` Terraform/OpenTofu resources to enable the [Kubernetes workload spec support](#kubernetes-workload-spec-support). This means any existing user who upgrades this module will see a destroy + recreate of their running workload, even though the resulting Kubernetes objects will be identical. That's potential production downtime. Please plan your upgrades accordingly.
+> 
+> Also, the module now applies a secure default [security context](#security-context).
 
 ## Requirements
 
@@ -72,11 +75,120 @@ metadata:
 ## Security Context
 
 This module applies a secure default `securityContext` to the workload:
+
 - `runAsNonRoot: true`
 - `seccompProfile.type: RuntimeDefault`
 - `allowPrivilegeEscalation: false` (on containers)
 
-If Platform Engineers need a different security context for their workloads, they will need to fork this module and customize the configuration.
+If Platform Engineers need a different default security context for their workloads, they will need to fork this module and customize the configuration.
+
+## Kubernetes workload spec support
+
+Starting with release `v2.0.0`, you may specify any details of Kubernetes workload resources ([Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) and [Pod](https://kubernetes.io/docs/concepts/workloads/pods/)) via Score under the reserved metadata property `"score.humanitec.dev/extension"`.
+
+```yaml
+apiVersion: score.dev/v1b1
+metadata:
+  name: main
+  "score.humanitec.dev/extension":
+    deployment:
+      # ... Content will be merged into the DeploymentSpec or StatefulSetSpec of your workload
+    pod:
+      # ... Content will be merged into the PodSpec of your workload
+```
+
+### Example
+
+<details>
+<summary>Example Score file</summary>
+
+```yaml
+apiVersion: score.dev/v1b1
+metadata:
+  name: main
+  "score.humanitec.dev/extension":
+    deployment:
+      metadata:
+        annotations:
+          my-annotation: my-value
+        labels:
+          my-label: my-value
+      replicas: 2
+      strategy:
+        rollingUpdate:
+          maxSurge: "30%"
+      minReadySeconds: 10
+    pod:
+      metadata:
+        annotations:
+          prometheus.io/scrape: "true"
+      securityContext:
+        runAsNonRoot: false
+      initContainers:
+        - name: wait-for-db
+          image: busybox
+          command: ["sh", "-c", "until nc -z db 5432; do sleep 1; done"]
+containers:
+  main:
+    image: ghcr.io/astromechza/demo-app:latest
+    variables:
+      BUCKET_NAME: ${resources.bucket.name}
+      SERVICE_ACCOUNT: ${resources.account.name}
+      NAMESPACE: ${resources.namespace.name}
+resources:
+  bucket:
+    type: s3-bucket
+  account:
+    type: k8s-service-account
+  namespace:
+    type: k8s-namespace
+    id: main
+```
+
+</details>
+
+<br/>
+
+<details>
+<summary>Resulting Kubernetes Deployment (Snippet):</summary>
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    my-annotation: my-value  # <--- From Extension
+  labels:
+    my-label: my-value       # <--- From Extension
+  name: main
+spec:
+  minReadySeconds: 10        # <--- From Extension
+  replicas: 2                # <--- From Extension
+  strategy:
+    rollingUpdate:
+      maxSurge: 30%          # <--- From Extension
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true" # <--- From Extension (Pod)
+    spec:
+      initContainers:        # <--- From Extension
+      - command:
+        - sh
+        - -c
+        - until nc -z db 5432; do sleep 1; done
+        image: busybox
+        name: wait-for-db
+      securityContext:
+        runAsNonRoot: false  # <--- From Extension (Pod)
+      containers:
+      - image: ghcr.io/astromechza/demo-app:latest
+        name: main
+```
+
+</details>
+
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
