@@ -108,7 +108,7 @@ resource "platform-orchestrator_module" "score_workload" {
 CLI:
 
 ```shell
-hctl create module \
+hctl create module score-workload \
     ...
     --set=module_inputs='{"namespace": "CHANGEME", "service_account_name": "CHANGEME", "wait_for_rollout": false}'
 ```
