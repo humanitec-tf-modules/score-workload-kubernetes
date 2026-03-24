@@ -92,9 +92,9 @@ metadata:
   name: main
   "score.humanitec.dev/extension":
     deployment:
-      # ... Content will be merged into the DeploymentSpec or StatefulSetSpec of your workload
+      # ... Content will be merged into your workload manifest's metadata and spec
     pod:
-      # ... Content will be merged into the PodTemplateSpec of your workload
+      # ... Content will be merged into your workload's spec.template.metadata and spec.template.spec
 ```
 
 ### Example
