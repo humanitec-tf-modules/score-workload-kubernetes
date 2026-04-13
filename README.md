@@ -288,16 +288,9 @@ spec:
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_deepmerge"></a> [deepmerge](#requirement\_deepmerge) | >= 0.2.0 |
+| <a name="requirement_deepmerge"></a> [deepmerge](#requirement\_deepmerge) | 1.2.1 |
 | <a name="requirement_kubernetes"></a> [kubernetes](#requirement\_kubernetes) | >= 2.11.0 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | >= 3.0.0 |
-
-## Providers
-
-| Name | Version |
-|------|---------|
-| <a name="provider_kubernetes"></a> [kubernetes](#provider\_kubernetes) | 3.0.1 |
-| <a name="provider_random"></a> [random](#provider\_random) | 3.8.1 |
 
 ## Modules
 

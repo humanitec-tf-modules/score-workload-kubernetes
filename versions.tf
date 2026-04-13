@@ -10,7 +10,7 @@ terraform {
     }
     deepmerge = {
       source  = "isometry/deepmerge"
-      version = ">= 0.2.0"
+      version = "1.2.1"
     }
   }
 }
